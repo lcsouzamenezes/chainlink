@@ -36,10 +36,13 @@ jobs:
           file: core/chainlink.Dockerfile
           # comma separated like: KEY1=VAL1,KEY2=VAL2,...
           build-args: COMMIT_SHA=${{ github.sha }}
-          tags: 795953128386.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/chainlink:latest.${{ github.sha }}
+          tags: 795953128386.dkr.ecr.${{ secrets.QA_AWS_REGION }}.amazonaws.com/chainlink:latest.${{ github.sha }}
           push: true
   run_tests:
     environment: integration
+    permissions:
+      id-token: write
+      contents: read
     name: run core evm ${{ github.event.inputs.focus }} performance tests
     runs-on: ubuntu-latest
     needs: build-chainlink
@@ -52,7 +55,7 @@ jobs:
           test_command_to_run: make test_perf args="--procs=10 --focus=${{ github.event.inputs.focus }}"
           test_download_vendor_packages_command: make gomod
           test_download_ginkgo_command: make test_install_ginkgo
-          cl_repo: 795953128386.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/chainlink
+          cl_repo: 795953128386.dkr.ecr.${{ secrets.QA_AWS_REGION }}.amazonaws.com/chainlink
           cl_image_tag: latest.${{ github.sha }}
           artifacts_location: ./integration-tests/performance/logs
           publish_report_paths: ./tests-perf-report.xml
