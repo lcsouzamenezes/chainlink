@@ -1,21 +1,22 @@
 name: Integration Tests
 on:
   pull_request:
+  push:
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      src: ${{ steps.changes.outputs.src }}
-    steps:
-      - uses: dorny/paths-filter@v2
-        id: changes
-        with:
-          filters: |
-            src:
-              - '**/*.go'
-              - '**/*go.sum'
-              - '**/*go.mod'
-              - '.github/workflows/integration-tests.yml'
+  # changes:
+  #   runs-on: ubuntu-latest
+  #   outputs:
+  #     src: ${{ steps.changes.outputs.src }}
+  #   steps:
+  #     - uses: dorny/paths-filter@v2
+  #       id: changes
+  #       with:
+  #         filters: |
+  #           src:
+  #             - '**/*.go'
+  #             - '**/*go.sum'
+  #             - '**/*go.mod'
+  #             - '.github/workflows/integration-tests.yml'
 
   build-chainlink:
     environment: integration
@@ -24,8 +25,8 @@ jobs:
       contents: read
     name: Build Chainlink Image
     runs-on: ubuntu-latest
-    needs: changes
-    if: ${{ needs.changes.outputs.src == 'true' }}
+    # needs: changes
+    # if: ${{ needs.changes.outputs.src == 'true' }}
     steps:
       - name: Checkout the repo
         uses: actions/checkout@v2
@@ -51,32 +52,35 @@ jobs:
           push: true
 
   smoke:
-    environment: integration
+    # environment: integration
     permissions:
       checks: write
       pull-requests: write
       id-token: write
       contents: read
     name: ETH Smoke Tests
-    runs-on: ubuntu-latest
-    needs: [changes, build-chainlink]
-    if: ${{ needs.changes.outputs.src == 'true' }}
-    steps:
-      - name: Checkout the repo
-        uses: actions/checkout@v2
-      - name: Run Tests
-        uses: smartcontractkit/ctf-ci-e2e-action@v1.0.4
-        with:
-          test_command_to_run: make test_smoke args="-nodes=15"
-          test_download_vendor_packages_command: make gomod
-          test_download_ginkgo_command: make test_install_ginkgo
-          cl_repo: 795953128386.dkr.ecr.${{ secrets.QA_AWS_REGION }}.amazonaws.com/chainlink
-          cl_image_tag: latest.${{ github.sha }}
-          artifacts_location: ./integration-tests/smoke/logs
-          publish_check_name: EVM Smoke Test Results
-          QA_AWS_REGION: ${{ secrets.QA_AWS_REGION }}
-          QA_AWS_ROLE_TO_ASSUME: ${{ secrets.QA_AWS_ROLE_TO_ASSUME }}
-          QA_KUBECONFIG: ${{ secrets.QA_KUBECONFIG }}
+    # runs-on: ubuntu-latest
+    # needs: [changes, build-chainlink]
+    needs: [build-chainlink]
+    # if: ${{ needs.changes.outputs.src == 'true' }}
+    # steps:
+      # - name: Checkout the repo
+      #   uses: actions/checkout@v2
+      # - name: Run Tests
+    uses: smartcontractkit/chainlink-github-actions/.github/workflows/chainlink-testing-framework/run-tests.yml@7e63b651df2d0a4afa156182aad28816fb58c372
+    with:
+      test_command_to_run: make test_smoke args="-nodes=15"
+      test_download_vendor_packages_command: make gomod
+      test_download_ginkgo_command: make test_install_ginkgo
+      cl_repo: 795953128386.dkr.ecr.${{ secrets.QA_AWS_REGION }}.amazonaws.com/chainlink
+      cl_image_tag: latest.${{ github.sha }}
+      artifacts_location: ./integration-tests/smoke/logs
+      publish_check_name: EVM Smoke Test Results
+      environment: integration
+    secrets: inherit
+      # QA_AWS_REGION: ${{ secrets.QA_AWS_REGION }}
+      # QA_AWS_ROLE_TO_ASSUME: ${{ secrets.QA_AWS_ROLE_TO_ASSUME }}
+      # QA_KUBECONFIG: ${{ secrets.QA_KUBECONFIG }}
 
   # Skipped due to issues with passing secrets between environments. WIP
   # solana:
