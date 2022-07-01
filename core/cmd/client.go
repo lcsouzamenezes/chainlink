@@ -675,7 +675,6 @@ func (t *promptingAPIInitializer) Initialize(orm sessions.ORM) (sessions.User, e
 			email := t.prompter.Prompt("Enter API Email: ")
 			pwd := t.prompter.PasswordPrompt("Enter API Password: ")
 			// On a fresh DB, create an admin user
-
 			user, err := sessions.NewUser(email, pwd, sessions.UserRoleAdmin)
 			if err != nil {
 				t.lggr.Errorf("Error creating API user: ", err, "err")
@@ -689,7 +688,7 @@ func (t *promptingAPIInitializer) Initialize(orm sessions.ORM) (sessions.User, e
 	}
 
 	// Attempt to contextually return the correct admin user, CLI access here implies admin
-	if adminUser, found := attemptAssumeAdminUser(dbUsers, orm, t.lggr); found == false {
+	if adminUser, found := attemptAssumeAdminUser(dbUsers, orm, t.lggr); found {
 		return adminUser, nil
 	}
 
@@ -736,7 +735,7 @@ func (f fileAPIInitializer) Initialize(orm sessions.ORM) (sessions.User, error) 
 	}
 
 	// Attempt to contextually return the correct admin user, CLI access here implies admin
-	if adminUser, found := attemptAssumeAdminUser(dbUsers, orm, f.lggr); found == false {
+	if adminUser, found := attemptAssumeAdminUser(dbUsers, orm, f.lggr); found {
 		return adminUser, nil
 	}
 
@@ -776,7 +775,7 @@ func attemptAssumeAdminUser(users []sessions.User, orm sessions.ORM, lggr logger
 	}
 	if populatedUser {
 		lggr.Infof("Defaulted to assume single DB admin API User", "email", singleAdmin)
-		return singleAdmin, false
+		return singleAdmin, true
 	}
 
 	return sessions.User{}, false
