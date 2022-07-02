@@ -50,7 +50,7 @@ type FeatureFlags interface {
 	FeatureFeedsManager() bool
 	FeatureOffchainReporting() bool
 	FeatureOffchainReporting2() bool
-	FeatureUICSAKeys() bool
+	FeatureUICSAKeys() bool //TODO remove
 	FeatureLogPoller() bool
 
 	AutoPprofEnabled() bool

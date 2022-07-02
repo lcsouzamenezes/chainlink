@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
-
 	solcfg "github.com/smartcontractkit/chainlink-solana/pkg/solana/config"
 	soldb "github.com/smartcontractkit/chainlink-solana/pkg/solana/db"
 	tercfg "github.com/smartcontractkit/chainlink-terra/pkg/terra/config"
@@ -14,11 +13,15 @@ import (
 	evmtyp "github.com/smartcontractkit/chainlink/core/chains/evm/types"
 	"github.com/smartcontractkit/chainlink/core/chains/solana"
 	tertyp "github.com/smartcontractkit/chainlink/core/chains/terra/types"
+	coreconfig "github.com/smartcontractkit/chainlink/core/config"
 	config "github.com/smartcontractkit/chainlink/core/config/v2"
+	"github.com/smartcontractkit/chainlink/core/logger"
 	"github.com/smartcontractkit/chainlink/core/utils"
 )
 
 // Config is the root type used for TOML configuration.
+//
+// See docs at /docs/CONFIG.md generated via config.GenerateDocs from /internal/config/docs.toml
 //
 // When adding a new field:
 // 	- consider including a unit suffix with the field name
@@ -34,6 +37,31 @@ type Config struct {
 	Solana []SolanaConfig `toml:",omitempty"`
 
 	Terra []TerraConfig `toml:",omitempty"`
+}
+
+func NewConfig(tomlString string, lggr logger.Logger) (coreconfig.GeneralConfig, error) {
+	lggr = lggr.Named("Config")
+	var c Config
+	err := toml.Unmarshal([]byte(tomlString), &c)
+	if err != nil {
+		return nil, err
+	}
+	input, err := c.TOMLString()
+	if err != nil {
+		return nil, err
+	}
+	//TODO drop if diff is good enough
+	lggr.Info("Input Configuration", "config", input)
+
+	//TODO c.SetDefaults()
+
+	effective, err := c.TOMLString()
+	if err != nil {
+		return nil, err
+	}
+	//TODO can we comment the defaults somehow? or maybe use diff.Diff ?
+	lggr.Info("Effective Configuration, with defaults applied", "config", effective)
+	return &legacyGeneralConfig{&c}, nil
 }
 
 // TOMLString returns a pretty-printed TOML encoded string, with extra line breaks removed.

@@ -14,6 +14,7 @@ import (
 	"github.com/shopspring/decimal"
 	soldb "github.com/smartcontractkit/chainlink-solana/pkg/solana/db"
 	terdb "github.com/smartcontractkit/chainlink-terra/pkg/terra/db"
+	ocrcommontypes "github.com/smartcontractkit/libocr/commontypes"
 	ocrnetworking "github.com/smartcontractkit/libocr/networking"
 
 	"github.com/smartcontractkit/chainlink/core/assets"
@@ -778,11 +779,14 @@ func (c *Config) loadLegacyCoreEnv() {
 		}
 		if ns == v2 || ns == v1v2 {
 			c.P2P.V2 = &config.P2PV2{
-				AnnounceAddresses:    envStringSlice("P2PV2AnnounceAddresses"),
-				DefaultBootstrappers: envStringSlice("P2PV2Bootstrappers"),
-				DeltaDial:            envDuration("P2PV2DeltaDial"),
-				DeltaReconcile:       envDuration("P2PV2DeltaReconcile"),
-				ListenAddresses:      envStringSlice("P2PV2ListenAddresses"),
+				AnnounceAddresses: envStringSlice("P2PV2AnnounceAddresses"),
+				DefaultBootstrappers: envSlice[ocrcommontypes.BootstrapperLocator]("P2PV2Bootstrappers", func(v *ocrcommontypes.BootstrapperLocator, b []byte) error {
+					fmt.Println("TEST", string(b))
+					return v.UnmarshalText(b)
+				}),
+				DeltaDial:       envDuration("P2PV2DeltaDial"),
+				DeltaReconcile:  envDuration("P2PV2DeltaReconcile"),
+				ListenAddresses: envStringSlice("P2PV2ListenAddresses"),
 			}
 		}
 	}
@@ -885,6 +889,27 @@ func envStringSlice(s string) *[]string {
 		// matching viper stringSlice logic
 		t := strings.TrimSuffix(strings.TrimPrefix(s, "["), "]")
 		return csv.NewReader(strings.NewReader(t)).Read()
+	}).ParsePtr()
+}
+
+func envSlice[T any](s string, parse func(*T, []byte) error) *[]T {
+	return envvar.New(s, func(v string) ([]T, error) {
+		// matching viper stringSlice logic
+		v = strings.TrimSuffix(strings.TrimPrefix(v, "["), "]")
+		ss, err := csv.NewReader(strings.NewReader(v)).Read()
+		if err != nil {
+			return nil, err
+		}
+		var ts []T
+		for _, s := range ss {
+			var t T
+			err := parse(&t, []byte(s))
+			if err != nil {
+				return nil, err
+			}
+			ts = append(ts, t)
+		}
+		return ts, nil
 	}).ParsePtr()
 }
 

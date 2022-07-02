@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"path/filepath"
 	"regexp"
 
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 
+	"github.com/smartcontractkit/chainlink/core/config"
 	"github.com/smartcontractkit/chainlink/core/logger"
+	"github.com/smartcontractkit/chainlink/core/services/chainlink"
 	"github.com/smartcontractkit/chainlink/core/sessions"
 	"github.com/smartcontractkit/chainlink/core/static"
 )
@@ -39,7 +40,8 @@ func NewApp(client *Client) *cli.App {
 		cli.StringFlag{
 			Name:  "admin-credentials-file",
 			Usage: "optional, applies only in client mode when making remote API calls. If provided, `FILE` containing admin credentials will be used for logging in, allowing to avoid an additional login step. If `FILE` is missing, it will be ignored",
-			Value: filepath.Join(client.Config.RootDir(), "apicredentials"),
+			//TODO remove? document another way?
+			//TODO restore? Value: filepath.Join(client.Config.RootDir(), "apicredentials"),
 		},
 		cli.StringFlag{
 			Name:  "remote-node-url",
@@ -50,8 +52,34 @@ func NewApp(client *Client) *cli.App {
 			Name:  "insecure-skip-verify",
 			Usage: "optional, applies only in client mode when making remote API calls. If turned on, SSL certificate verification will be disabled. This is mostly useful for people who want to use Chainlink with a self-signed TLS certificate",
 		},
+		cli.StringFlag{
+			Name:   "config, c",
+			Usage:  "TOML configuration file via flag, or raw TOML via env var. If used, legacy env vars must not be set.", //TODO
+			EnvVar: "CL_CONFIG",
+		},
 	}
 	app.Before = func(c *cli.Context) error {
+		if c.IsSet("config") {
+			// TOML
+			configTOML := os.Getenv("CL_CONFIG")
+			if configTOML == "" {
+				fileName := c.String("config")
+				b, err := os.ReadFile(fileName)
+				if err != nil {
+					return errors.Wrapf(err, "failed to read config file: %s", fileName)
+				}
+				configTOML = string(b)
+			}
+			var err error
+			client.Config, err = chainlink.NewConfig(configTOML, client.Logger)
+			if err != nil {
+				return err
+			}
+			//TODO error if any legacy env vars set
+		} else {
+			// Legacy ENV
+			client.Config = config.NewGeneralConfig(client.Logger)
+		}
 		logDeprecatedClientEnvWarnings(client.Logger)
 		if c.Bool("json") {
 			client.Renderer = RendererJSON{Writer: os.Stdout}
@@ -69,6 +97,7 @@ func NewApp(client *Client) *cli.App {
 			insecureSkipVerify = true
 		}
 		clientOpts := ClientOpts{RemoteNodeURL: *remoteNodeURL, InsecureSkipVerify: insecureSkipVerify}
+		//TODO root dir only...
 		cookieAuth := NewSessionCookieAuthenticator(clientOpts, DiskCookieStore{Config: client.Config}, client.Logger)
 		sr := sessions.SessionRequest{}
 		sessionRequestBuilder := NewFileSessionRequestBuilder(client.Logger)
@@ -766,9 +795,9 @@ func NewApp(client *Client) *cli.App {
 					Description: "Potentially destructive commands for managing the database.",
 					Subcommands: []cli.Command{
 						{
-							Name:   "reset",
-							Usage:  "Drop, create and migrate database. Useful for setting up the database in order to run tests or resetting the dev database. WARNING: This will ERASE ALL DATA for the specified DATABASE_URL.",
-							Hidden: !client.Config.Dev(),
+							Name:  "reset",
+							Usage: "Drop, create and migrate database. Useful for setting up the database in order to run tests or resetting the dev database. WARNING: This will ERASE ALL DATA for the specified DATABASE_URL.",
+							//TODO restore? Hidden: !client.Config.Dev(),
 							Action: client.ResetDatabase,
 							Flags: []cli.Flag{
 								cli.BoolFlag{
@@ -778,9 +807,9 @@ func NewApp(client *Client) *cli.App {
 							},
 						},
 						{
-							Name:   "preparetest",
-							Usage:  "Reset database and load fixtures.",
-							Hidden: !client.Config.Dev(),
+							Name:  "preparetest",
+							Usage: "Reset database and load fixtures.",
+							//TODO restore? Hidden: !client.Config.Dev(), //TODO can't do this
 							Action: client.PrepareTestDatabase,
 							Flags: []cli.Flag{
 								cli.BoolFlag{
@@ -814,9 +843,9 @@ func NewApp(client *Client) *cli.App {
 							Flags:  []cli.Flag{},
 						},
 						{
-							Name:   "create-migration",
-							Usage:  "Create a new migration.",
-							Hidden: !client.Config.Dev(),
+							Name:  "create-migration",
+							Usage: "Create a new migration.",
+							//TODO restore? Hidden: !client.Config.Dev(), //TODO can't do this
 							Action: client.CreateMigration,
 							Flags: []cli.Flag{
 								cli.StringFlag{
@@ -830,9 +859,9 @@ func NewApp(client *Client) *cli.App {
 			},
 		},
 		{
-			Name:   "initiators",
-			Usage:  "Commands for managing External Initiators",
-			Hidden: !client.Config.Dev() && !client.Config.FeatureExternalInitiators(),
+			Name:  "initiators",
+			Usage: "Commands for managing External Initiators",
+			//TODO restore? Hidden: !client.Config.Dev() && !client.Config.FeatureExternalInitiators(), //TODO can't do this
 			Subcommands: []cli.Command{
 				{
 					Name:   "create",
